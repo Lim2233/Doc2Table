@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能表格填写工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; }
+        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        h2 { margin-top: 0; color: #333; }
+        label { font-weight: bold; display: block; margin-bottom: 8px; }
+        input[type="file"] { margin-bottom: 10px; }
+        textarea { width: 100%; height: 120px; padding: 8px; box-sizing: border-box; }
+        .note { color: #666; font-size: 0.9em; margin-top: 5px; }
+        button { padding: 12px 24px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #status { margin-top: 20px; font-weight: bold; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .file-list { margin-left: 20px; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>📊 文档驱动表格自动填写</h1>
+    <p>上传多个数据文档、表格模板和需求说明，系统将自动生成填写后的表格。</p>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <!-- 1. 数据文档（多文件） -->
+        <div class="section">
+            <h2>📁 数据文档</h2>
+            <label for="dataFiles">选择多个文档（支持 .xlsx, .docx, .md, .txt）</label>
+            <input type="file" id="dataFiles" name="data_files" multiple accept=".xlsx,.docx,.md,.txt" required>
+            <div class="note">可按住 Ctrl 或 Shift 多选</div>
+            <div id="fileList" class="file-list"></div>
+        </div>
+
+        <!-- 2. 表格模板 -->
+        <div class="section">
+            <h2>📋 表格模板</h2>
+            <label for="templateFile">选择表格模板文件</label>
+            <input type="file" id="templateFile" name="template_file" accept=".xlsx,.xls" required>
+            <div class="note">支持 .xlsx 或 .xls 格式</div>
+        </div>
+
+        <!-- 3. 需求说明 -->
+        <div class="section">
+            <h2>📝 需求说明</h2>
+            <label>方式一：上传需求文件（.txt）</label>
+            <input type="file" id="reqFile" name="requirements_file" accept=".txt">
+            <div class="note">或直接在下方填写需求内容</div>
+            <label style="margin-top:15px;">方式二：直接填写需求</label>
+            <textarea id="reqText" name="requirements_text" placeholder="例如：请提取文档中的公司名称、日期和总金额，填入表格对应列..."></textarea>
+        </div>
+
+        <button type="submit" id="submitBtn">🚀 开始处理</button>
+        <div id="status"></div>
+    </form>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const dataFilesInput = document.getElementById('dataFiles');
+        const fileListDiv = document.getElementById('fileList');
+
+        // 显示已选中的数据文档列表
+        dataFilesInput.addEventListener('change', function() {
+            fileListDiv.innerHTML = '';
+            if (this.files.length > 0) {
+                const ul = document.createElement('ul');
+                for (let file of this.files) {
+                    const li = document.createElement('li');
+                    li.textContent = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+                    ul.appendChild(li);
+                }
+                fileListDiv.appendChild(ul);
+            }
+        });
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // 基本前端校验
+            const dataFiles = dataFilesInput.files;
+            const templateFile = document.getElementById('templateFile').files[0];
+            const reqFile = document.getElementById('reqFile').files[0];
+            const reqText = document.getElementById('reqText').value.trim();
+
+            if (dataFiles.length === 0) {
+                alert('请至少选择一个数据文档');
+                return;
+            }
+            if (!templateFile) {
+                alert('请上传表格模板');
+                return;
+            }
+            if (!reqFile && !reqText) {
+                alert('请提供需求内容（上传文件或填写文本框）');
+                return;
+            }
+
+            // 准备 FormData
+            const formData = new FormData(form);
+
+            // 更新界面状态
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ 处理中，请稍候...';
+            statusDiv.innerHTML = '<span style="color:#007bff;">正在处理文件，可能需要几十秒，请勿关闭页面...</span>';
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    // 尝试解析错误 JSON
+                    let errorMsg = `服务器错误: ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errorMsg = errData.error || errorMsg;
+                    } catch (e) {}
+                    throw new Error(errorMsg);
+                }
+
+                // 处理成功：获取文件 blob 并触发下载
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+
+                // 从响应头获取文件名，如果没有则用默认名
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = '填写结果.xlsx';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (match && match[1]) {
+                        filename = match[1].replace(/['"]/g, '');
+                    }
+                }
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                statusDiv.innerHTML = '<span class="success">✅ 处理完成！文件已开始下载。</span>';
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">❌ 出错：${error.message}</span>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 开始处理';
+            }
+        });
+    </script>
+</body>
+</html>

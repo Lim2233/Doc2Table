@@ -4,21 +4,22 @@ import shutil
 from flask import Flask, render_template, request, send_file, jsonify
 from werkzeug.utils import secure_filename
 
-# 导入你已有的处理函数（假设它叫 process_and_fill）
-# 请根据你的实际情况调整导入路径
-from your_processing_module import process_and_fill
+from process import process_and_fill
 
 app = Flask(__name__)
 
-# 配置上传文件夹
-UPLOAD_FOLDER = 'uploads'
+# 配置上传文件夹（固定目录）
+INPUT_RAW_DATA = 'input/rawData'
+INPUT_TEMPLATE = 'input/template'
+INPUT_USER_INPUT = 'input/userInput'
 RESULT_FOLDER = 'results'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# 创建所需目录
+for folder in [INPUT_RAW_DATA, INPUT_TEMPLATE, INPUT_USER_INPUT, RESULT_FOLDER]:
+    os.makedirs(folder, exist_ok=True)
+
 app.config['RESULT_FOLDER'] = RESULT_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 最大100MB，可调
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 最大100MB
 
 # 允许上传的文件扩展名
 ALLOWED_EXTENSIONS = {'xlsx', 'docx', 'md', 'txt'}
@@ -44,7 +45,7 @@ def process():
     if not template_file or template_file.filename == '':
         return jsonify({'error': '请上传表格模板文件'}), 400
 
-    # 3. 获取需求文本（可以是文件上传，也可以是文本框输入）
+    # 3. 获取需求文本（文件或文本框）
     requirements_text = None
     req_file = request.files.get('requirements_file')
     if req_file and req_file.filename != '':
@@ -56,67 +57,60 @@ def process():
         if not requirements_text:
             return jsonify({'error': '请提供需求内容（上传文件或填写文本框）'}), 400
 
-    # 4. 创建本次请求的唯一工作目录，避免文件名冲突
-    job_id = str(uuid.uuid4())
-    job_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-    os.makedirs(job_upload_dir, exist_ok=True)
-
     try:
-        # 5. 保存所有上传的文件到工作目录
-        saved_data_paths = []
+        # 4. 保存数据文件到 input/rawData
         for f in data_files:
             if f.filename == '':
                 continue
             if not allowed_file(f.filename):
                 return jsonify({'error': f'不支持的文件类型: {f.filename}'}), 400
             filename = secure_filename(f.filename)
-            save_path = os.path.join(job_upload_dir, filename)
+            save_path = os.path.join(INPUT_RAW_DATA, filename)
             f.save(save_path)
-            saved_data_paths.append(save_path)
 
-        # 保存模板文件（保留原始扩展名）
+        # 5. 保存模板文件到 input/template
         template_filename = secure_filename(template_file.filename)
-        template_path = os.path.join(job_upload_dir, template_filename)
+        template_path = os.path.join(INPUT_TEMPLATE, template_filename)
         template_file.save(template_path)
 
-        # 保存需求文本为临时文件（如果你的处理函数需要文件路径）
-        requirements_path = os.path.join(job_upload_dir, 'requirements.txt')
+        # 6. 保存需求文本到 input/userInput/requirements.txt
+        requirements_path = os.path.join(INPUT_USER_INPUT, 'requirements.txt')
         with open(requirements_path, 'w', encoding='utf-8') as f:
             f.write(requirements_text)
 
-        # 6. 定义结果文件路径
-        result_filename = f'result_{job_id}.xlsx'  # 假设输出是 xlsx，根据实际调整
+        # 7. 调用处理函数（无参数，内部读取固定目录）
+        process_and_fill()
+
+        # 8. 查找结果文件（假设处理函数会在 RESULT_FOLDER 下生成固定名称的文件）
+        #    这里按原有逻辑生成结果文件名，若 process_and_fill 行为不同需调整
+        result_filename = 'result.xlsx'   # 根据实际情况修改
         result_path = os.path.join(app.config['RESULT_FOLDER'], result_filename)
 
-        # 7. 调用你已有的处理函数
-        #    请根据你实际的函数签名调整参数传递方式
-        process_and_fill(
-            data_files=saved_data_paths,
-            template_file=template_path,
-            requirements_file=requirements_path,
-            output_file=result_path
-        )
+        if not os.path.exists(result_path):
+            return jsonify({'error': '处理完成但未生成结果文件'}), 500
 
-        # 8. 返回结果文件供下载（前端会触发下载）
+        # 9. 返回结果文件供下载
         return send_file(
             result_path,
             as_attachment=True,
-            download_name=f'填写结果_{job_id[:8]}.xlsx',  # 下载时的文件名
+            download_name=f'填写结果_{uuid.uuid4().hex[:8]}.xlsx',
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
     except Exception as e:
-        # 处理出错时返回错误信息
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
 
     finally:
-        # 9. 清理临时上传的文件（可选，防止占用磁盘）
-        #    如果不想立即清理，可以注释掉，定期用脚本清理旧目录
-        try:
-            shutil.rmtree(job_upload_dir)
-        except:
-            pass
-        # 注意：结果文件建议保留一段时间再清理，这里直接保留，你可以后续加个定时任务删除旧文件
+        # 可选：清理上传的输入文件（若需要可取消注释）
+        # try:
+        #     for f in os.listdir(INPUT_RAW_DATA):
+        #         os.remove(os.path.join(INPUT_RAW_DATA, f))
+        #     for f in os.listdir(INPUT_TEMPLATE):
+        #         os.remove(os.path.join(INPUT_TEMPLATE, f))
+        #     os.remove(os.path.join(INPUT_USER_INPUT, 'requirements.txt'))
+        # except:
+        #     pass
+        pass
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

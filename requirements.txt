@@ -1,0 +1,6 @@
+Flask
+openpyxl
+pandas
+Werkzeug
+dashscope
+docling
