@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Input data files (large or user-specific)
+input/
+
+# Output files
+output/
+
+#temp files
+temp/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
