@@ -102,14 +102,14 @@ def process():
 
     finally:
         # 可选：清理上传的输入文件（若需要可取消注释）
-        # try:
-        #     for f in os.listdir(INPUT_RAW_DATA):
-        #         os.remove(os.path.join(INPUT_RAW_DATA, f))
-        #     for f in os.listdir(INPUT_TEMPLATE):
-        #         os.remove(os.path.join(INPUT_TEMPLATE, f))
-        #     os.remove(os.path.join(INPUT_USER_INPUT, 'requirements.txt'))
-        # except:
-        #     pass
+        try:
+            for f in os.listdir(INPUT_RAW_DATA):
+                os.remove(os.path.join(INPUT_RAW_DATA, f))
+            for f in os.listdir(INPUT_TEMPLATE):
+                os.remove(os.path.join(INPUT_TEMPLATE, f))
+            os.remove(os.path.join(INPUT_USER_INPUT, 'requirements.txt'))
+        except:
+            pass
         pass
 
 if __name__ == '__main__':
