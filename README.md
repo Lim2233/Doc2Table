@@ -1,1 +1,1 @@
-"# Doc2Table" 
+# Doc2Table
