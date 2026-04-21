@@ -1,9 +1,9 @@
 class CONFIG:
-    INDATA=r"input/dataRaw"
+    INDATA=r"input/rawData"
     INTEM=r"input/template"
     INUSER=r"input/userInput"
 
-    OUTPUT=r"output"
+    OUTPUT=r"results"
 
     TEMPTIME=r"temp/time"
     TEMPXLSX=r"temp/XLSX"
@@ -48,7 +48,7 @@ def main():
     f(config.FD2MD,config.INDATA,config.TEMPMD)
     f(config.FMD2JSON,config.TEMPMD,config.TEMPMDJSON)
     f(config.FXLSX2JSONTEMPLATE,config.INTEM,config.TEMPJSONTEMPLATE)
-    # f(config.FJ2FILLJSON,config.TEMPMDJSON,config.TEMPJSONTEMPLATE,config.TEMPFILL)
+    f(config.FJ2FILLJSON,config.TEMPMDJSON,config.TEMPJSONTEMPLATE,config.TEMPFILL)
     
     
     f(config.FFILLXLSX,config.TEMPFILL,config.INTEM,config.OUTPUT)
@@ -57,14 +57,7 @@ def main():
     print(f"运行时间: {time.perf_counter() - start:.6f} 秒")
     pass
 
-def process_and_fill(data_files,
-            template_file,
-            requirements_file,
-            output_file):
-    config.INDATA=data_files
-    config.INTEM=template_file
-    config.INUSER=requirements_file
-    config.OUTPUT=output_file
+def process_and_fill():
     main()
 
 if __name__ == "__main__":

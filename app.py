@@ -9,10 +9,10 @@ from process import process_and_fill
 app = Flask(__name__)
 
 # 配置上传文件夹（固定目录）
-INPUT_RAW_DATA = 'input/rawData'
-INPUT_TEMPLATE = 'input/template'
-INPUT_USER_INPUT = 'input/userInput'
-RESULT_FOLDER = 'results'
+INPUT_RAW_DATA = r'input/rawData'
+INPUT_TEMPLATE = r'input/template'
+INPUT_USER_INPUT = r'input/userInput'
+RESULT_FOLDER = r'results'
 
 # 创建所需目录
 for folder in [INPUT_RAW_DATA, INPUT_TEMPLATE, INPUT_USER_INPUT, RESULT_FOLDER]:
