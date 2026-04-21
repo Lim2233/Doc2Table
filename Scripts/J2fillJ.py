@@ -16,6 +16,7 @@ import sys
 import os
 import glob
 from typing import List, Dict, Optional, Any
+from APIKey import DASHSCOPE_API_KEY
 
 try:
     import dashscope
@@ -26,13 +27,13 @@ except ImportError:
 
 # ---------- API 配置 ----------
 def get_api_key() -> str:
-    key = "sk-21d03e0c0223478699b7ae9acc0c0073"
-    # key = os.environ.get("DASHSCOPE_API_KEY")
-    # if not key:
-    #     key = input("请输入 DashScope API Key: ").strip()
-    #     if not key:
-    #         print("未提供 API Key，程序退出。", file=sys.stderr)
-    #         sys.exit(1)
+    
+    key = DASHSCOPE_API_KEY
+    if not key:
+        key = input("请输入 DashScope API Key: ").strip()
+        if not key:
+            print("未提供 API Key，程序退出。", file=sys.stderr)
+            sys.exit(1)
     return key
 
 dashscope.api_key = get_api_key()
